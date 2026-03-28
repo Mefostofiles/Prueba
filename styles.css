@@ -1,0 +1,138 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1221;
+  --card: #171a2b;
+  --soft: #252a44;
+  --text: #eef1ff;
+  --muted: #a4accf;
+  --accent: #4f8cff;
+  --danger: #ff5f7d;
+  --ok: #3ddc97;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: radial-gradient(circle at top, #1b2140 0%, var(--bg) 55%);
+  color: var(--text);
+}
+
+header,
+footer {
+  padding: 1.2rem 1rem;
+  text-align: center;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  background: color-mix(in srgb, var(--card) 92%, black);
+  border: 1px solid #2f3558;
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.controls textarea,
+.controls input[type='file'] {
+  width: 100%;
+  margin: 0.4rem 0 1rem;
+}
+
+textarea {
+  background: #0c1020;
+  border: 1px solid #2f3558;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.75rem;
+  resize: vertical;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+button {
+  border: none;
+  border-radius: 10px;
+  color: white;
+  padding: 0.65rem 0.9rem;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+button.secondary {
+  background: var(--soft);
+}
+
+button.danger {
+  background: var(--danger);
+}
+
+button.accent {
+  background: var(--ok);
+  color: #062014;
+  font-weight: 700;
+}
+
+.viewer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.8rem;
+}
+
+.viewer-box {
+  min-height: 300px;
+  border: 1px dashed #475083;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0c1020;
+  color: var(--muted);
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.viewer-box img,
+.viewer-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.hint {
+  color: var(--muted);
+}
+
+.history ul,
+#historyList {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+
+#historyList li {
+  margin-bottom: 0.35rem;
+  color: #ced4f5;
+}
+
+
+.viewer-box canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}

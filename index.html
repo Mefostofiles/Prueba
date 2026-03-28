@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Studio IA — Editor no destructivo</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Studio IA</h1>
+      <p>Editor de foto/video guiado por prompts con procesamiento real en imagen.</p>
+    </header>
+
+    <main>
+      <section class="controls card">
+        <h2>1) Carga tu archivo principal</h2>
+        <input id="mediaInput" type="file" accept="image/*,video/*" />
+
+        <h2>2) (Opcional) Fondo para reemplazo</h2>
+        <input id="backgroundInput" type="file" accept="image/*" />
+
+        <h2>3) Escribe tu instrucción</h2>
+        <textarea
+          id="promptInput"
+          rows="4"
+          placeholder="Ej: cambia el fondo y sube brillo 20, cambia ropa a rojo"
+        ></textarea>
+
+        <div class="button-row">
+          <button id="applyBtn">Aplicar edición IA</button>
+          <button id="undoBtn" class="secondary">Deshacer último</button>
+          <button id="resetBtn" class="danger">Restaurar original</button>
+          <button id="exportBtn" class="accent">Exportar edición</button>
+        </div>
+
+        <p id="statusText" class="hint">Listo.</p>
+      </section>
+
+      <section class="workspace card">
+        <div class="viewer-grid">
+          <article>
+            <h3>Original</h3>
+            <div id="originalViewer" class="viewer-box empty">Sin archivo</div>
+          </article>
+          <article>
+            <h3>Editado (resultado real)</h3>
+            <div id="editedViewer" class="viewer-box empty">Sin archivo</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="history card">
+        <h2>Historial de ediciones</h2>
+        <ul id="historyList"></ul>
+      </section>
+    </main>
+
+    <footer>
+      <small>
+        En imágenes se aplican cambios reales sobre píxeles (canvas); en video este MVP
+        mantiene edición de vista previa y deja el pipeline de render final para backend.
+      </small>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0/dist/body-pix.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
