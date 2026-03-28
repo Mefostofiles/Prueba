@@ -1,11 +1,9 @@
 const mediaInput = document.getElementById('mediaInput');
-const backgroundInput = document.getElementById('backgroundInput');
 const promptInput = document.getElementById('promptInput');
 const applyBtn = document.getElementById('applyBtn');
 const undoBtn = document.getElementById('undoBtn');
 const resetBtn = document.getElementById('resetBtn');
 const exportBtn = document.getElementById('exportBtn');
-const statusText = document.getElementById('statusText');
 
 const originalViewer = document.getElementById('originalViewer');
 const editedViewer = document.getElementById('editedViewer');
@@ -15,12 +13,8 @@ const state = {
   file: null,
   type: null,
   objectUrl: null,
-  backgroundFile: null,
-  backgroundUrl: null,
   edits: [],
-  imageBaseData: null,
-  currentImageData: null,
-  videoStyle: {
+  style: {
     brightness: 1,
     contrast: 1,
     saturate: 1,
@@ -32,63 +26,29 @@ const state = {
   }
 };
 
-let bodyPixNet = null;
-
 mediaInput.addEventListener('change', onMediaSelected);
-backgroundInput.addEventListener('change', onBackgroundSelected);
 applyBtn.addEventListener('click', onApplyPrompt);
 undoBtn.addEventListener('click', undoEdit);
 resetBtn.addEventListener('click', resetAll);
 exportBtn.addEventListener('click', exportEdited);
 
-function setStatus(text) {
-  statusText.textContent = text;
-}
-
-async function onMediaSelected(event) {
+function onMediaSelected(event) {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  cleanupObjectUrls();
+  cleanupObjectUrl();
   state.file = file;
   state.type = file.type.startsWith('video') ? 'video' : 'image';
   state.objectUrl = URL.createObjectURL(file);
   state.edits = [];
-  resetVideoStyle();
-
-  if (state.type === 'image') {
-    await initializeImageBuffers();
-  }
+  resetStyle();
 
   renderOriginal();
-  await renderEdited();
+  renderEdited();
   renderHistory();
-  setStatus(`Archivo cargado: ${file.name}`);
 }
 
-function onBackgroundSelected(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  if (state.backgroundUrl) URL.revokeObjectURL(state.backgroundUrl);
-
-  state.backgroundFile = file;
-  state.backgroundUrl = URL.createObjectURL(file);
-  setStatus(`Fondo cargado: ${file.name}`);
-}
-
-async function initializeImageBuffers() {
-  const img = await loadImage(state.objectUrl);
-  const canvas = document.createElement('canvas');
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0);
-
-  state.imageBaseData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  state.currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
-
-async function onApplyPrompt() {
+function onApplyPrompt() {
   if (!state.file) {
     alert('Primero sube una imagen o video.');
     return;
@@ -100,257 +60,123 @@ async function onApplyPrompt() {
     return;
   }
 
+  const instructions = parsePrompt(prompt);
+  instructions.forEach((i) => applyInstruction(i));
   state.edits.push(prompt);
-  await rebuildFromHistory();
-  await renderEdited();
+
+  renderEdited();
   renderHistory();
   promptInput.value = '';
 }
 
-async function rebuildFromHistory() {
-  if (state.type === 'image') {
-    state.currentImageData = new ImageData(
-      new Uint8ClampedArray(state.imageBaseData.data),
-      state.imageBaseData.width,
-      state.imageBaseData.height
-    );
-
-    for (const prompt of state.edits) {
-      await applyImagePrompt(prompt);
-    }
-
-    setStatus('Edición aplicada sobre píxeles reales.');
-    return;
-  }
-
-  resetVideoStyle();
-  for (const prompt of state.edits) {
-    applyVideoPrompt(prompt);
-  }
-  setStatus('Video: vista previa actualizada (render final en siguiente fase).');
-}
-
-function parsePercent(prompt, keyword, fallback = 15) {
-  const regex = new RegExp(`${keyword}\\s*(\\d{1,3})`, 'i');
-  const match = prompt.match(regex);
-  return match ? Number(match[1]) : fallback;
-}
-
-async function applyImagePrompt(prompt) {
+function parsePrompt(prompt) {
   const p = prompt.toLowerCase();
+  const instructions = [];
 
-  if (p.includes('fondo') && p.includes('cambia')) {
-    await applyBackgroundReplacement();
+  if (p.includes('brillo')) instructions.push({ type: 'brightness', value: 1.15 });
+  if (p.includes('menos brillo')) instructions.push({ type: 'brightness', value: 0.9 });
+  if (p.includes('contraste')) instructions.push({ type: 'contrast', value: 1.15 });
+  if (p.includes('satur')) instructions.push({ type: 'saturate', value: 1.2 });
+  if (p.includes('blanco y negro')) instructions.push({ type: 'grayscale', value: 1 });
+  if (p.includes('vintage')) instructions.push({ type: 'sepia', value: 0.75 });
+  if (p.includes('desenfo')) instructions.push({ type: 'blur', value: 1.5 });
+  if (p.includes('fondo')) {
+    if (p.includes('playa')) instructions.push({ type: 'background', value: 'linear-gradient(120deg,#5ac8fa,#0060c8)' });
+    else if (p.includes('negro')) instructions.push({ type: 'background', value: '#121212' });
+    else if (p.includes('blanco')) instructions.push({ type: 'background', value: '#f3f3f3' });
+    else instructions.push({ type: 'background', value: '#29335c' });
+  }
+  if (p.includes('ropa')) {
+    // Placeholder: para una IA real se haría segmentación por máscara + inpainting.
+    instructions.push({ type: 'hueRotate', value: 35 });
   }
 
-  if (p.includes('ropa') && p.includes('cambia')) {
-    const color = detectColor(p);
-    await recolorPerson(color);
+  if (!instructions.length) {
+    instructions.push({ type: 'brightness', value: 1.05 });
   }
 
-  if (p.includes('brillo')) {
-    const amount = parsePercent(prompt, 'brillo', 15);
-    applyFilter((r, g, b) => [r + (255 * amount) / 100, g + (255 * amount) / 100, b + (255 * amount) / 100]);
-  }
+  return instructions;
+}
 
-  if (p.includes('contraste')) {
-    const amount = parsePercent(prompt, 'contraste', 20);
-    const factor = (259 * (amount + 255)) / (255 * (259 - amount));
-    applyFilter((r, g, b) => [
-      factor * (r - 128) + 128,
-      factor * (g - 128) + 128,
-      factor * (b - 128) + 128
-    ]);
-  }
-
-  if (p.includes('satur')) {
-    applySaturation(1.25);
-  }
-
-  if (p.includes('blanco y negro')) {
-    applyFilter((r, g, b) => {
-      const y = 0.299 * r + 0.587 * g + 0.114 * b;
-      return [y, y, y];
-    });
-  }
-
-  if (p.includes('vintage')) {
-    applySepia();
+function applyInstruction(instruction) {
+  switch (instruction.type) {
+    case 'brightness':
+      state.style.brightness *= instruction.value;
+      break;
+    case 'contrast':
+      state.style.contrast *= instruction.value;
+      break;
+    case 'saturate':
+      state.style.saturate *= instruction.value;
+      break;
+    case 'hueRotate':
+      state.style.hueRotate += instruction.value;
+      break;
+    case 'blur':
+      state.style.blur += instruction.value;
+      break;
+    case 'grayscale':
+      state.style.grayscale = Math.max(state.style.grayscale, instruction.value);
+      break;
+    case 'sepia':
+      state.style.sepia = Math.max(state.style.sepia, instruction.value);
+      break;
+    case 'background':
+      state.style.background = instruction.value;
+      break;
+    default:
+      break;
   }
 }
 
-function applyVideoPrompt(prompt) {
-  const p = prompt.toLowerCase();
-  if (p.includes('brillo')) state.videoStyle.brightness *= 1.15;
-  if (p.includes('contraste')) state.videoStyle.contrast *= 1.15;
-  if (p.includes('satur')) state.videoStyle.saturate *= 1.2;
-  if (p.includes('blanco y negro')) state.videoStyle.grayscale = 1;
-  if (p.includes('vintage')) state.videoStyle.sepia = 0.75;
-  if (p.includes('desenfo')) state.videoStyle.blur += 1.5;
-  if (p.includes('ropa')) state.videoStyle.hueRotate += 35;
-}
-
-function applyFilter(transform) {
-  const data = state.currentImageData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const [r, g, b] = transform(data[i], data[i + 1], data[i + 2]);
-    data[i] = clamp255(r);
-    data[i + 1] = clamp255(g);
-    data[i + 2] = clamp255(b);
-  }
-}
-
-function applySaturation(factor) {
-  applyFilter((r, g, b) => {
-    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-    return [
-      gray + (r - gray) * factor,
-      gray + (g - gray) * factor,
-      gray + (b - gray) * factor
-    ];
-  });
-}
-
-function applySepia() {
-  applyFilter((r, g, b) => [
-    0.393 * r + 0.769 * g + 0.189 * b,
-    0.349 * r + 0.686 * g + 0.168 * b,
-    0.272 * r + 0.534 * g + 0.131 * b
-  ]);
-}
-
-async function applyBackgroundReplacement() {
-  const personMask = await getPersonMask();
-  if (!personMask) {
-    setStatus('No se detectó persona para reemplazo de fondo.');
-    return;
+function buildMediaElement(readonly = false) {
+  if (state.type === 'video') {
+    const video = document.createElement('video');
+    video.src = state.objectUrl;
+    video.controls = true;
+    video.loop = true;
+    video.muted = readonly;
+    return video;
   }
 
-  const width = state.currentImageData.width;
-  const height = state.currentImageData.height;
-  let bgPixels = null;
-
-  if (state.backgroundUrl) {
-    const bg = await loadImage(state.backgroundUrl);
-    const bgCanvas = document.createElement('canvas');
-    bgCanvas.width = width;
-    bgCanvas.height = height;
-    const bgCtx = bgCanvas.getContext('2d');
-    bgCtx.drawImage(bg, 0, 0, width, height);
-    bgPixels = bgCtx.getImageData(0, 0, width, height).data;
-  }
-
-  const data = state.currentImageData.data;
-  for (let i = 0; i < personMask.length; i += 1) {
-    const pixelIndex = i * 4;
-    const isPerson = personMask[i] === 1;
-    if (isPerson) continue;
-
-    if (bgPixels) {
-      data[pixelIndex] = bgPixels[pixelIndex];
-      data[pixelIndex + 1] = bgPixels[pixelIndex + 1];
-      data[pixelIndex + 2] = bgPixels[pixelIndex + 2];
-      data[pixelIndex + 3] = 255;
-    } else {
-      data[pixelIndex] = 32;
-      data[pixelIndex + 1] = 36;
-      data[pixelIndex + 2] = 48;
-      data[pixelIndex + 3] = 255;
-    }
-  }
-}
-
-async function recolorPerson(hexColor) {
-  const personMask = await getPersonMask();
-  if (!personMask) {
-    setStatus('No se detectó persona para cambio de ropa/color.');
-    return;
-  }
-
-  const tint = hexToRgb(hexColor);
-  const data = state.currentImageData.data;
-
-  for (let i = 0; i < personMask.length; i += 1) {
-    if (personMask[i] !== 1) continue;
-    const px = i * 4;
-    data[px] = clamp255(data[px] * 0.45 + tint.r * 0.55);
-    data[px + 1] = clamp255(data[px + 1] * 0.45 + tint.g * 0.55);
-    data[px + 2] = clamp255(data[px + 2] * 0.45 + tint.b * 0.55);
-  }
-}
-
-async function getPersonMask() {
-  try {
-    if (!bodyPixNet) {
-      setStatus('Cargando modelo IA de segmentación...');
-      bodyPixNet = await bodyPix.load();
-    }
-
-    const imageElement = await imageDataToImage(state.currentImageData);
-    const segmentation = await bodyPixNet.segmentPerson(imageElement, {
-      internalResolution: 'medium',
-      segmentationThreshold: 0.7
-    });
-    return segmentation.data;
-  } catch (error) {
-    console.error(error);
-    setStatus('No se pudo usar el modelo IA (revisa conexión/CDN).');
-    return null;
-  }
+  const image = document.createElement('img');
+  image.src = state.objectUrl;
+  image.alt = readonly ? 'Archivo original' : 'Archivo editado';
+  return image;
 }
 
 function renderOriginal() {
   originalViewer.classList.remove('empty');
   originalViewer.innerHTML = '';
-
-  if (state.type === 'video') {
-    const video = document.createElement('video');
-    video.src = state.objectUrl;
-    video.controls = true;
-    originalViewer.appendChild(video);
-    return;
-  }
-
-  const img = document.createElement('img');
-  img.src = state.objectUrl;
-  img.alt = 'Original';
-  originalViewer.appendChild(img);
+  originalViewer.appendChild(buildMediaElement(true));
 }
 
-async function renderEdited() {
+function renderEdited() {
   editedViewer.classList.remove('empty');
   editedViewer.innerHTML = '';
 
-  if (state.type === 'video') {
-    const wrapper = document.createElement('div');
-    wrapper.style.width = '100%';
-    wrapper.style.height = '100%';
-    wrapper.style.background = state.videoStyle.background;
+  const wrapper = document.createElement('div');
+  wrapper.style.width = '100%';
+  wrapper.style.height = '100%';
+  wrapper.style.background = state.style.background;
+  wrapper.style.display = 'flex';
+  wrapper.style.alignItems = 'center';
+  wrapper.style.justifyContent = 'center';
+  wrapper.style.borderRadius = '10px';
 
-    const video = document.createElement('video');
-    video.src = state.objectUrl;
-    video.controls = true;
-    video.style.filter = [
-      `brightness(${state.videoStyle.brightness})`,
-      `contrast(${state.videoStyle.contrast})`,
-      `saturate(${state.videoStyle.saturate})`,
-      `hue-rotate(${state.videoStyle.hueRotate}deg)`,
-      `blur(${state.videoStyle.blur}px)`,
-      `grayscale(${state.videoStyle.grayscale})`,
-      `sepia(${state.videoStyle.sepia})`
-    ].join(' ');
+  const media = buildMediaElement(false);
+  media.style.filter = [
+    `brightness(${state.style.brightness})`,
+    `contrast(${state.style.contrast})`,
+    `saturate(${state.style.saturate})`,
+    `hue-rotate(${state.style.hueRotate}deg)`,
+    `blur(${state.style.blur}px)`,
+    `grayscale(${state.style.grayscale})`,
+    `sepia(${state.style.sepia})`
+  ].join(' ');
 
-    wrapper.appendChild(video);
-    editedViewer.appendChild(wrapper);
-    return;
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = state.currentImageData.width;
-  canvas.height = state.currentImageData.height;
-  const ctx = canvas.getContext('2d');
-  ctx.putImageData(state.currentImageData, 0, 0);
-  editedViewer.appendChild(canvas);
+  wrapper.appendChild(media);
+  editedViewer.appendChild(wrapper);
 }
 
 function renderHistory() {
@@ -369,85 +195,31 @@ function renderHistory() {
   });
 }
 
-async function undoEdit() {
+function undoEdit() {
   if (!state.edits.length) return;
   state.edits.pop();
-  await rebuildFromHistory();
-  await renderEdited();
+  rebuildStyleFromHistory();
+  renderEdited();
   renderHistory();
 }
 
-async function resetAll() {
+function resetAll() {
   if (!state.file) return;
   state.edits = [];
-  if (state.type === 'image') {
-    state.currentImageData = new ImageData(
-      new Uint8ClampedArray(state.imageBaseData.data),
-      state.imageBaseData.width,
-      state.imageBaseData.height
-    );
-  } else {
-    resetVideoStyle();
-  }
-
-  await renderEdited();
+  resetStyle();
+  renderEdited();
   renderHistory();
-  setStatus('Restaurado al original.');
 }
 
-async function exportEdited() {
-  if (!state.file) {
-    alert('No hay archivo para exportar.');
-    return;
-  }
-
-  if (state.type === 'video') {
-    alert('Exportación de video requiere backend/FFmpeg (siguiente fase).');
-    return;
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = state.currentImageData.width;
-  canvas.height = state.currentImageData.height;
-  const ctx = canvas.getContext('2d');
-  ctx.putImageData(state.currentImageData, 0, 0);
-
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${state.file.name.replace(/\.[^.]+$/, '')}-editado-real.png`;
-  a.click();
-  URL.revokeObjectURL(url);
-
-  setStatus('Imagen exportada con cambios reales.');
+function rebuildStyleFromHistory() {
+  resetStyle();
+  state.edits.forEach((prompt) => {
+    parsePrompt(prompt).forEach((i) => applyInstruction(i));
+  });
 }
 
-function detectColor(text) {
-  if (text.includes('rojo')) return '#d7263d';
-  if (text.includes('azul')) return '#2f6df6';
-  if (text.includes('verde')) return '#2cb67d';
-  if (text.includes('negro')) return '#1d1d1d';
-  if (text.includes('blanco')) return '#f5f5f5';
-  return '#7f5af0';
-}
-
-function hexToRgb(hex) {
-  const clean = hex.replace('#', '');
-  const num = Number.parseInt(clean, 16);
-  return {
-    r: (num >> 16) & 255,
-    g: (num >> 8) & 255,
-    b: num & 255
-  };
-}
-
-function clamp255(value) {
-  return Math.max(0, Math.min(255, Math.round(value)));
-}
-
-function resetVideoStyle() {
-  state.videoStyle = {
+function resetStyle() {
+  state.style = {
     brightness: 1,
     contrast: 1,
     saturate: 1,
@@ -459,27 +231,57 @@ function resetVideoStyle() {
   };
 }
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
+async function exportEdited() {
+  if (!state.file) {
+    alert('No hay archivo para exportar.');
+    return;
+  }
 
-async function imageDataToImage(imageData) {
+  if (state.type === 'video') {
+    alert('Exportación de video no está implementada en este MVP.');
+    return;
+  }
+
+  const img = new Image();
+  img.src = state.objectUrl;
+
+  await img.decode();
+
   const canvas = document.createElement('canvas');
-  canvas.width = imageData.width;
-  canvas.height = imageData.height;
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
   const ctx = canvas.getContext('2d');
-  ctx.putImageData(imageData, 0, 0);
-  return loadImage(canvas.toDataURL('image/png'));
+
+  if (state.style.background !== 'transparent') {
+    ctx.fillStyle = '#20242f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  ctx.filter = [
+    `brightness(${state.style.brightness})`,
+    `contrast(${state.style.contrast})`,
+    `saturate(${state.style.saturate})`,
+    `hue-rotate(${state.style.hueRotate}deg)`,
+    `blur(${state.style.blur}px)`,
+    `grayscale(${state.style.grayscale})`,
+    `sepia(${state.style.sepia})`
+  ].join(' ');
+
+  ctx.drawImage(img, 0, 0);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${state.file.name.replace(/\.[^.]+$/, '')}-editado.png`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-function cleanupObjectUrls() {
-  if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
-  if (state.backgroundUrl) URL.revokeObjectURL(state.backgroundUrl);
+function cleanupObjectUrl() {
+  if (state.objectUrl) {
+    URL.revokeObjectURL(state.objectUrl);
+  }
 }
 
-window.addEventListener('beforeunload', cleanupObjectUrls);
+window.addEventListener('beforeunload', cleanupObjectUrl);

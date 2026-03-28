@@ -1,34 +1,32 @@
-# Studio IA (MVP mejorado)
+# Studio IA (MVP)
 
-Ahora el editor sí genera **resultados reales en imágenes** (procesa píxeles con canvas)
-y añade segmentación de persona con IA para operaciones como cambio de fondo/ropa.
+Prototipo de aplicación web para editar fotos y videos por prompt de manera **no destructiva**.
 
-## Funcionalidades reales
+## Qué hace este MVP
 
-- Carga imagen o video.
-- Imagen: aplica cambios reales sobre los píxeles.
-- Cambio de fondo con segmentación de persona (BodyPix + TensorFlow.js).
-- Cambio de color de "ropa" (tinte sobre región de persona detectada).
-- Ajustes de brillo, contraste, saturación, blanco y negro y vintage.
-- Historial, deshacer, restaurar y exportación PNG.
+- Carga una imagen o video.
+- Mantiene el original intacto en una vista separada.
+- Aplica una capa de ediciones por prompt en la vista editada.
+- Guarda historial de operaciones, con deshacer y restaurar.
+- Exporta imagen editada (PNG).
 
-## Cómo ejecutar
+## Cómo usar
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Abre `http://localhost:8000`.
+Luego abre `http://localhost:8000`.
 
-## Prompts ejemplo
+## Ejemplos de prompt
 
-- `cambia el fondo`
-- `cambia el fondo y sube brillo 20`
-- `cambia ropa a rojo`
-- `sube contraste 25 y saturacion`
-- `blanco y negro`
+- `sube brillo y contraste`
+- `cambia el fondo a playa`
+- `pon blanco y negro`
+- `cambia ropa a negro`
 
-## Nota sobre video
+## Nota profesional
 
-- En video, este MVP mantiene edición de vista previa.
-- Para exportación final real de video por prompt se recomienda backend con FFmpeg + modelo IA.
+Este proyecto deja la estructura lista para conectar motores de IA reales
+(segmentación, inpainting, reemplazo de fondo y edición de video por prompt)
+mediante un backend/API sin tocar la lógica no destructiva del front.

@@ -9,22 +9,21 @@
   <body>
     <header>
       <h1>Studio IA</h1>
-      <p>Editor de foto/video guiado por prompts con procesamiento real en imagen.</p>
+      <p>
+        Editor de foto/video no destructivo guiado por prompts (prototipo profesional).
+      </p>
     </header>
 
     <main>
       <section class="controls card">
-        <h2>1) Carga tu archivo principal</h2>
+        <h2>1) Carga tu archivo</h2>
         <input id="mediaInput" type="file" accept="image/*,video/*" />
 
-        <h2>2) (Opcional) Fondo para reemplazo</h2>
-        <input id="backgroundInput" type="file" accept="image/*" />
-
-        <h2>3) Escribe tu instrucción</h2>
+        <h2>2) Escribe lo que quieres editar</h2>
         <textarea
           id="promptInput"
           rows="4"
-          placeholder="Ej: cambia el fondo y sube brillo 20, cambia ropa a rojo"
+          placeholder="Ej: cambia el fondo a playa, sube brillo, cambia ropa a color negro"
         ></textarea>
 
         <div class="button-row">
@@ -34,37 +33,40 @@
           <button id="exportBtn" class="accent">Exportar edición</button>
         </div>
 
-        <p id="statusText" class="hint">Listo.</p>
+        <p class="hint">
+          Este MVP aplica ediciones no destructivas con una capa de instrucciones.
+          Puedes conectar modelos reales luego (segmentación, cambio de ropa,
+          reemplazo de fondo, etc.) sin modificar el original.
+        </p>
       </section>
 
       <section class="workspace card">
         <div class="viewer-grid">
           <article>
-            <h3>Original</h3>
+            <h3>Original (solo lectura)</h3>
             <div id="originalViewer" class="viewer-box empty">Sin archivo</div>
           </article>
           <article>
-            <h3>Editado (resultado real)</h3>
+            <h3>Editado (vista previa)</h3>
             <div id="editedViewer" class="viewer-box empty">Sin archivo</div>
           </article>
         </div>
       </section>
 
       <section class="history card">
-        <h2>Historial de ediciones</h2>
+        <h2>Historial de ediciones (no destructivo)</h2>
         <ul id="historyList"></ul>
       </section>
     </main>
 
     <footer>
       <small>
-        En imágenes se aplican cambios reales sobre píxeles (canvas); en video este MVP
-        mantiene edición de vista previa y deja el pipeline de render final para backend.
+        Consejo: para resultados tipo "IA profesional", integra un backend con
+        modelos de segmentación/inpainting/video diffusion y guarda cada operación
+        como metadata.
       </small>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0/dist/body-pix.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
