@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Studio IA — Editor no destructivo</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Studio IA</h1>
+      <p>
+        Editor de foto/video no destructivo guiado por prompts (prototipo profesional).
+      </p>
+    </header>
+
+    <main>
+      <section class="controls card">
+        <h2>1) Carga tu archivo</h2>
+        <input id="mediaInput" type="file" accept="image/*,video/*" />
+
+        <h2>2) Escribe lo que quieres editar</h2>
+        <textarea
+          id="promptInput"
+          rows="4"
+          placeholder="Ej: cambia el fondo a playa, sube brillo, cambia ropa a color negro"
+        ></textarea>
+
+        <div class="button-row">
+          <button id="applyBtn">Aplicar edición IA</button>
+          <button id="undoBtn" class="secondary">Deshacer último</button>
+          <button id="resetBtn" class="danger">Restaurar original</button>
+          <button id="exportBtn" class="accent">Exportar edición</button>
+        </div>
+
+        <p class="hint">
+          Este MVP aplica ediciones no destructivas con una capa de instrucciones.
+          Puedes conectar modelos reales luego (segmentación, cambio de ropa,
+          reemplazo de fondo, etc.) sin modificar el original.
+        </p>
+      </section>
+
+      <section class="workspace card">
+        <div class="viewer-grid">
+          <article>
+            <h3>Original (solo lectura)</h3>
+            <div id="originalViewer" class="viewer-box empty">Sin archivo</div>
+          </article>
+          <article>
+            <h3>Editado (vista previa)</h3>
+            <div id="editedViewer" class="viewer-box empty">Sin archivo</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="history card">
+        <h2>Historial de ediciones (no destructivo)</h2>
+        <ul id="historyList"></ul>
+      </section>
+    </main>
+
+    <footer>
+      <small>
+        Consejo: para resultados tipo "IA profesional", integra un backend con
+        modelos de segmentación/inpainting/video diffusion y guarda cada operación
+        como metadata.
+      </small>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
